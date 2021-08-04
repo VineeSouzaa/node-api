@@ -1,6 +1,8 @@
 const mysql = require("../mysql")
+const bcrypt = require("bcrypt")
+const jwt = require("jsonwebtoken")
 
-exports.getUsers = (req,res) => {
+exports.get = (req,res) => {
 
     mysql.executeQuery(
         "SELECT * FROM USERS"
@@ -13,7 +15,8 @@ exports.getUsers = (req,res) => {
             let phones = []
 
             await mysql.executeQuery(
-                "SELECT * FROM PHONES WHERE USER = 29",
+                "SELECT * FROM PHONES WHERE USER = ?",
+                [user.id]
             ).then((telephones) => {
 
                 for(let phone of telephones) {
@@ -22,7 +25,7 @@ exports.getUsers = (req,res) => {
                         area_code: phone.area_code
                     })
                 }
-       
+
             })
 
             userList.push({
@@ -39,68 +42,109 @@ exports.getUsers = (req,res) => {
 
     })
 
-    // mysql.getConnection((err,conn,next) => {
+}
 
-    //     if(err) {
-    //         return res.status(500).send({
-    //             'message': 'houve um erro ao conectar com o servidor',
-    //             'error': error.sqlMessage
-    //         })
-    //     }
+exports.store = (req,res,errors) => {
 
-    //     conn.query(
-    //         "SELECT * FROM USERS",
-    //         (err,result,fields) => {
+    if(errors.isEmpty()) {
 
-    //             if(err) {
-    //                 return res.status(500).send({
-    //                     message: 'Houve um erro ao recuperar usuários.',
-    //                     error: err.sqlMessage
-    //                 })
-    //             } 
+        bcrypt.hash(
+            req.body.password,
+            2,
+            (err,hash) => {
 
-    //             userList = []
+                if(err) {
+                    return res.status(500).send({
+                        'message': 'Houve um erro ao encriptografar a senha',
+                        'erro': err
+                    })
+                }
 
-    //             for(let user of result) {
+                mysql.executeQuery(          
+                    "INSERT INTO USERS (NAME,MAIL,PASSWORD) VALUES (?,?,?)",
+                    [
+                        req.body.name,
+                        req.body.email,
+                        hash
+                    ]
+                ).then( async (result) => {
 
-    //                 telephoneList = []
+                    if(result) {
 
-    //                 conn.query(
-    //                     "SELECT * FROM PHONES WHERE USER = ?",[user.id],
-    //                     (err,result,fields) => {
+                        for(let phone of req.body.telephones) { 
+                            await mysql.executeQuery(
+                                "INSERT INTO PHONES (USER,PHONE,AREA_CODE) VALUES (?,?,?)",
+                                [
+                                    result.insertId,
+                                    phone.number,
+                                    phone.area_code
+                                ]
+                            )
+                        }
+                    }
 
-    //                         conn.release()
+                    res.send({
+                        id: result.insertId,
+                    })
 
-    //                         if(err) {
-    //                             return res.status(500).send({
-    //                                 message: 'Houve um erro ao recuperar os telefones.',
-    //                                 error: err.sqlMessage
-    //                             })
-    //                         }
-                            
-    //                         for(let phone of result) {
-    //                             telephoneList.push({
-    //                                 number: phone.phone,
-    //                                 area_code: phone.area_code
-    //                             })
-    //                         }
+                })
+            }
+        )
+    } else {
+        return res.status(400).json({
+            message : 'Existem erros na requisição.',
+            erros   : errors.array()
+        })
+    }
 
-    //                     }
-    //                 )
+}
 
-    //                 userList.push({
-    //                     id: user.id,
-    //                     email: user.mail,
-    //                     created_at: user.created_at,
-    //                     modified_at: user.modified_at,
-    //                     telephones: null
-    //                 })
-    //             }
+exports.login = (req,res) => {
 
-    //             res.send(userList)
+    mysql.executeQuery(
+        "SELECT * FROM USERS WHERE MAIL = ?",
+        [
+            req.body.email,
+        ],
+    ).then((result) => {
 
-    //         }
-    //     )
-  
-    // })
+        if(result.length > 0) {
+
+            bcrypt.compare(req.body.password,result[0].password, (err,same) => {
+
+                if(err) {
+                    return res.status(500).send({
+                        message: 'houve um erro interno',
+                        error: err
+                    })
+                } 
+
+                if(same) {
+
+                    res.send({
+                        message: 'Usuário validado com sucesso.',
+                        token: jwt.sign(
+                            {
+                                id: result[0].id,
+                                email: result[0].mail
+                            },
+                            process.env.SECRET
+                        )  
+                    })
+
+                } else {
+                    res.status(401).send({
+                        message: 'usuário não encontrado. Verifique o email ou senha digitada.'
+                    })
+                }
+
+            })
+
+        } else {
+            return res.status(401).send({
+                message: 'usuário não encontrado. Verifique o email ou senha digitada.'
+            })
+        }
+
+    })
 }
