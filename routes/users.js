@@ -6,11 +6,9 @@ const jwt = require("jsonwebtoken")
 const { body, validationResult } = require('express-validator')
 const auth = require("../middlewares/auth")
 
-router.get('/', auth, (req,res) => {
-    res.send({
-        message : 'userRoute2'
-    })
-})
+const usersController = require('../controllers/usersController')
+
+router.get('/', auth, usersController.getUsers)
 
 router.post(
     '/',

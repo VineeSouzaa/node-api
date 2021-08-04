@@ -4,12 +4,13 @@ module.exports = (req,res,next ) => {
 
     try {
         const decode = jwt.verify(
-            req.body.token,
+            req.headers.authorization.split(' ')[1],
             process.env.SECRET
         )
+        next()
     }
     catch {
-        return res.status(403).send({
+        return res.status(401).send({
             message: 'Login expirado, realize a autenticação novamente.'
         })
     }
