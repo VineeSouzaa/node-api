@@ -14,12 +14,12 @@ router.post(
     body('name').isString().withMessage("O nome tem que ser um texto."),
     body('email').isEmail().withMessage("E-mail inválido."),
     body('email').custom( async (value) => {
-
+ 
         await mysql.executeQuery(
-            "SELECT * FROM USERS WHERE MAIL = ?",[value]
+            "SELECT * FROM users WHERE MAIL = ?",[value]
         ).then((result) => {
-
-            if(result.length > 0) {
+           
+            if(result.length) {
                 return Promise.reject('Este e-mail já está sendo utilizado.')
             }
 

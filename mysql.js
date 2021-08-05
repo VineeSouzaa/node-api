@@ -1,46 +1,34 @@
 var mysql = require('mysql')
 
-var mysql = mysql.createPool({
+var pool = mysql.createPool({
     'user' : process.env.MYSQL_USER,
     'database': process.env.MYSQL_DATABASE,
     'host': process.env.MYSQL_HOST,
+    'password': process.env.MYSQL_PASSWORD,
     'port' : process.env.MYSQL_PORT
 })
 
-exports.pool = mysql
+exports.pool = pool
 
-exports.executeQuery = (query,params) => { 
+exports.executeQuery = async (query,params) => { 
 
     return new Promise((resolve) => {
         
-        mysql.getConnection((err,conn,next) => {
+        pool.getConnection((err,conn) => {
 
             if(err) {
-                return res.status(500).send({
-                    'message': 'houve um erro ao conectar com o servidor',
-                    'error': error.sqlMessage
-                })
+                throw err
             }
 
             conn.query(
                 query,
-                params, 
-                (err,result,fields) => {
-
+                params,
+                (error,result) => {
                     conn.release()
-
-                    if(err) {
-                        return res.status(500).send({
-                            message: 'Houve um erro ao executar a query.',
-                            error: err.sqlMessage
-                        })
-                    } 
-
                     resolve(result)
-
                 }
             )
-
+ 
         })
 
     })

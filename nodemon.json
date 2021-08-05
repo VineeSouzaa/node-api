@@ -1,8 +1,8 @@
 {
     "env" : {
         "MYSQL_USER": "root",
-        "MYSQL_PASSWORD": "",
-        "MYSQL_HOST": "localhost",
+        "MYSQL_PASSWORD": "Vinicius15@",
+        "MYSQL_HOST": "35.247.220.251",
         "MYSQL_PORT": 3306,
         "MYSQL_DATABASE": "myapp",
         "SECRET":"SECRET"

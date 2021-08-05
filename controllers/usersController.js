@@ -1,41 +1,44 @@
 const mysql = require("../mysql")
 const bcrypt = require("bcrypt")
 const jwt = require("jsonwebtoken")
+const pool = require("../mysql").pool
 
 exports.get = (req,res) => {
 
     mysql.executeQuery(
-        "SELECT * FROM USERS"
+        "SELECT * FROM users"
     ).then( async (result) => {
 
         let userList = [] 
 
-        for(let user of result) {
+        if(result) {
+            for(let user of result) {
 
-            let phones = []
-
-            await mysql.executeQuery(
-                "SELECT * FROM PHONES WHERE USER = ?",
-                [user.id]
-            ).then((telephones) => {
-
-                for(let phone of telephones) {
-                    phones.push({
-                        number: phone.phone,
-                        area_code: phone.area_code
-                    })
-                }
-
-            })
-
-            userList.push({
-                id: user.id,
-                email: user.mail,
-                created_at: user.created_at,
-                modified_at: user.modified_at,
-                telephones: phones
-            })
-
+                let phones = []
+    
+                await mysql.executeQuery(
+                    "SELECT * FROM phones WHERE user = ?",
+                    [user.id]
+                ).then((telephones) => {
+    
+                    for(let phone of telephones) {
+                        phones.push({
+                            number: phone.phone,
+                            area_code: phone.area_code
+                        })
+                    }
+    
+                })
+    
+                userList.push({
+                    id: user.id,
+                    email: user.mail,
+                    created_at: user.created_at,
+                    modified_at: user.modified_at,
+                    telephones: phones
+                })
+    
+            }
         }
 
         res.send(userList)
@@ -61,7 +64,7 @@ exports.store = (req,res,errors) => {
                 }
 
                 mysql.executeQuery(          
-                    "INSERT INTO USERS (NAME,MAIL,PASSWORD) VALUES (?,?,?)",
+                    "INSERT INTO users (name,mail,password) VALUES (?,?,?)",
                     [
                         req.body.name,
                         req.body.email,
@@ -73,7 +76,7 @@ exports.store = (req,res,errors) => {
 
                         for(let phone of req.body.telephones) { 
                             await mysql.executeQuery(
-                                "INSERT INTO PHONES (USER,PHONE,AREA_CODE) VALUES (?,?,?)",
+                                "INSERT INTO phones (user,phone,area_code) VALUES (?,?,?)",
                                 [
                                     result.insertId,
                                     phone.number,
@@ -81,11 +84,22 @@ exports.store = (req,res,errors) => {
                                 ]
                             )
                         }
-                    }
 
-                    res.send({
-                        id: result.insertId,
-                    })
+                        await mysql.executeQuery(
+                            "SELECT * FROM users WHERE id = ?",
+                            [
+                                result.insertId
+                            ],
+                        ).then((result) => {
+
+                            res.send({
+                                id: result[0].id,
+                                created_at: result[0].created_at,
+                                modified_at: result[0].modified_at
+                            })
+                        })
+
+                    }
 
                 })
             }
@@ -102,7 +116,7 @@ exports.store = (req,res,errors) => {
 exports.login = (req,res) => {
 
     mysql.executeQuery(
-        "SELECT * FROM USERS WHERE MAIL = ?",
+        "SELECT * FROM users WHERE MAIL = ?",
         [
             req.body.email,
         ],
